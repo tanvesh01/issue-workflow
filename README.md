@@ -31,7 +31,16 @@ Ensure these tools are installed and configured:
 - **jq** - JSON parsing utility
 - **OpenClaw or OpenCode** - The skill runs within OpenClaw runtime
 
-## Usage
+## Skills Included
+
+This repository contains two related skills:
+
+1. **`feature-from-issue`** - Create features from GitHub issues (Full-Auto PRD workflow)
+2. **`address-pr-comments`** - Address review comments on existing PRs
+
+---
+
+## Usage: feature-from-issue
 
 ### Basic Usage
 
@@ -71,6 +80,80 @@ omo-feature --logs 42
 
 # Kill a job
 omo-feature --kill <pid>
+```
+
+---
+
+## Usage: address-pr-comments
+
+### Basic Usage
+
+```
+/address-pr-comments <pr-number> <repo>
+```
+
+Example:
+```
+/address-pr-comments 43 tanvesh01/paper-portfolio
+```
+
+### Alternative Commands
+
+```
+/fix-pr-comments <pr-number> <repo>      # Same workflow
+/resolve-comments <pr-number> <repo>     # Same workflow
+```
+
+### What It Does
+
+Automatically addresses review comments on PRs:
+
+1. **Fetches all comments** from the PR
+2. **Analyzes each comment** - determines if code change, question, or already addressed
+3. **Groups related comments** - same file or topic
+4. **Implements changes** - makes code changes, runs tests, creates commits
+5. **Pushes commits** - each addressed comment gets an atomic commit
+6. **Summarizes** - reports what was addressed vs skipped
+
+### Comment Categories
+
+| Type | Action |
+|------|--------|
+| Code Change | ✅ Implement the change |
+| Style/Format | ✅ Apply formatting |
+| Add Tests | ✅ Write missing tests |
+| Documentation | ✅ Update docs |
+| **Question** | ⏭️ Skip (needs human) |
+| **Outdated** | ⏭️ Skip |
+
+### Example Session
+
+```
+User: /address-pr-comments 43 tanvesh01/paper-portfolio
+
+Agent: 🔍 Fetching PR #43 from tanvesh01/paper-portfolio...
+       📋 Found 4 review comments
+       
+       📊 Analysis:
+       ├─ @alice: "Button too small" → Code change needed
+       ├─ @bob: "Use CSS variables" → Code change needed
+       ├─ @charlie: "Add unit tests" → Testing needed
+       └─ @dave: "Why this approach?" → Question (skip)
+       
+       🚀 Addressing 3 actionable comments...
+       
+       ✅ All changes committed:
+          - abc123: fix: address PR feedback - increase button size
+          - def456: refactor: use CSS variables for theming
+          - ghi789: test: add unit tests for theme switching
+       
+       📤 Pushed to PR #43
+       
+       Summary:
+       ✅ 3 comments addressed
+       ⏭️ 1 comment skipped (needs discussion)
+       
+       <promise>DONE</promise>
 ```
 
 ## How It Works

@@ -1,10 +1,13 @@
 ---
 name: issue-workflow
 version: 1.0.0
-description: Full-Auto from PRD workflow - autonomously develop features from GitHub issues
+description: Full-Auto from PRD workflow - autonomously develop features from GitHub issues and address PR comments
 triggers:
   - command: /feature-from-issue
   - command: /fix-issue
+  - command: /address-pr-comments
+  - command: /fix-pr-comments
+  - command: /resolve-comments
 permissions:
   - filesystem:read
   - filesystem:write
@@ -14,7 +17,12 @@ permissions:
 
 # Issue Workflow Skill
 
-Autonomously implement GitHub issues using the Full-Auto from PRD workflow.
+Autonomously implement GitHub issues using the Full-Auto from PRD workflow, and automatically address PR review comments.
+
+## Skills Included
+
+1. **feature-from-issue** - Create features from GitHub issues
+2. **address-pr-comments** - Address review comments on existing PRs
 
 ## What I Do
 
@@ -246,3 +254,148 @@ Agent: 🔍 Fetching issue #42 from tanvesh01/paper-portfolio...
 - Parallel execution uses OpenClaw's `task` tool
 - Git operations use isolated branches (never touch main/master)
 - All changes are committed before PR creation
+
+---
+
+# Address PR Comments Workflow
+
+Autonomously implement changes requested in GitHub PR review comments.
+
+## Usage
+
+```
+/address-pr-comments <pr-number> <repo>
+/fix-pr-comments <pr-number> <repo>
+/resolve-comments <pr-number> <repo>
+```
+
+## Workflow
+
+### Step 1: Fetch & Analyze Comments
+
+```bash
+gh pr view <pr-number> --repo <repo> --json comments,headRefName,baseRefName
+```
+
+The agent:
+- Fetches all PR review comments
+- Parses each to understand the request
+- Categorizes by type: Code change / Style / Tests / Docs / Question / Outdated
+
+### Step 2: Check Already Addressed
+
+For each comment:
+- Check recent git commits for references to the comment
+- Look for commit messages mentioning the comment author or topic
+- Skip if clearly already implemented
+- Mark as "needs action" if not addressed
+
+### Step 3: Group & Plan
+
+Group related comments:
+- Same file → Group together
+- Same topic (e.g., all CSS variables) → Group
+- Independent → Handle separately
+
+Create execution plan with specific changes needed.
+
+### Step 4: Execute Changes
+
+For each comment group:
+
+1. **Checkout PR branch**:
+   ```bash
+   git fetch origin
+   git checkout <pr-branch>
+   ```
+
+2. **Make changes**:
+   - Implement requested code changes
+   - Add/update tests if requested
+   - Update documentation if needed
+
+3. **Verify**:
+   ```bash
+   npm test  # or equivalent
+   npm run lint
+   ```
+
+4. **Commit** with descriptive message:
+   ```bash
+   git commit -m "fix: address PR feedback - increase button size
+   
+   Resolves comment by @alice on PR #<number>
+   
+   Changes:
+   - Increased button size from 24px to 48px
+   - Added focus styles for accessibility"
+   ```
+
+### Step 5: Push & Complete
+
+1. Push all commits:
+   ```bash
+   git push origin <pr-branch>
+   ```
+
+2. Summary output showing addressed vs skipped comments.
+
+## Comment Categories
+
+| Category | Action |
+|----------|--------|
+| **Code Change** | ✅ Implement the requested change |
+| **Style/Format** | ✅ Apply formatting rules |
+| **Add Tests** | ✅ Write missing test coverage |
+| **Documentation** | ✅ Update docs/comments |
+| **Nitpick** | ✅ Address if straightforward |
+| **Question** | ⏭️ **SKIP** - needs human discussion |
+| **Outdated** | ⏭️ Skip if no longer relevant |
+
+## Workflow Rules
+
+1. **100% Autonomous** - Never ask user for clarification
+2. **Skip Questions** - Questions need human discussion
+3. **Atomic Commits** - Each addressed comment gets its own commit
+4. **Test First** - Run tests before committing changes
+5. **Clear Messages** - Commit messages reference comment author
+6. **Signal Done** - Output `<promise>DONE</promise>` when complete
+
+## Example Session
+
+```
+User: /address-pr-comments 43 tanvesh01/paper-portfolio
+
+Agent: 🔍 Fetching PR #43 from tanvesh01/paper-portfolio...
+       📋 Found 4 review comments
+       
+       📊 Analysis:
+       ├─ @alice: "Button too small" → Code change needed
+       ├─ @bob: "Use CSS variables" → Code change needed
+       ├─ @charlie: "Add unit tests" → Testing needed
+       └─ @dave: "Why this approach?" → Question (skip)
+       
+       🚀 Addressing 3 actionable comments...
+       
+       ✅ All changes committed:
+          - abc123: fix: address PR feedback - increase button size
+          - def456: refactor: use CSS variables for theming  
+          - ghi789: test: add unit tests for theme switching
+       
+       📤 Pushed to PR #43
+       
+       Summary:
+       ✅ 3 comments addressed
+       ⏭️ 1 comment skipped (needs discussion)
+       
+       <promise>DONE</promise>
+```
+
+## Error Handling
+
+- **PR not found**: Report error and exit
+- **No comments**: Report "No actionable comments found"
+- **Already addressed**: Skip gracefully
+- **Tests fail**: Debug and retry (up to 3 attempts)
+- **Push rejected**: Report branch conflict, needs manual resolution
+- **All comments are questions**: Report "No actionable comments - all require discussion"
